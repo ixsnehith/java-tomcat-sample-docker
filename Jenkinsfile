@@ -1,24 +1,58 @@
 pipeline {
     agent any
+
+    tools {
+        jdk 'java-21'
+        maven 'maven-3.9'
+    }
+
+    environment {
+        IMAGE_NAME = "java-tomcat-app"
+        CONTAINER_NAME = "tomcat-app"
+    }
+
     stages {
-        stage('Build Application') {
+
+        stage('Checkout Code') {
             steps {
-                sh 'mvn -f pom.xml clean package'
-            }
-            post {
-                success {
-                    echo "Now Archiving the Artifacts...."
-                    archiveArtifacts artifacts: '**/*.war'
-                }
+                git branch: 'master',
+                    url: 'https://github.com/ixsnehith/java-tomcat-sample-docker.git'
             }
         }
 
-        stage('Create Tomcat Docker Image'){
+        stage('Build WAR with Maven') {
             steps {
-                sh "pwd"
-                sh "docker build . -t tomcatsamplewebapp:${env.BUILD_ID}"
+                sh 'mvn clean package'
             }
         }
 
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $IMAGE_NAME:latest .'
+            }
+        }
+
+        stage('Deploy on Docker (Tomcat)') {
+            steps {
+                sh '''
+                docker stop $CONTAINER_NAME || true
+                docker rm $CONTAINER_NAME || true
+
+                docker run -d \
+                  -p 8080:8080 \
+                  --name $CONTAINER_NAME \
+                  $IMAGE_NAME:latest
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment successful!"
+        }
+        failure {
+            echo "Deployment failed. Check logs."
+        }
     }
 }
