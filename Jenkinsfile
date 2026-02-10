@@ -36,7 +36,7 @@ pipeline {
             steps {
                 sh '''
                 docker stop $CONTAINER_NAME || true
-                docker juki $CONTAINER_NAME || true
+                docker rm $CONTAINER_NAME || true
 
                 docker run -d \
                   -p 9090:8080 \
